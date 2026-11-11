@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Receita Segura — Receitas médicas assinadas digitalmente</title>
+<meta name="description" content="Médicos emitem e assinam digitalmente cada receita. Pacientes recebem um documento legível, verificável e sempre disponível.">
+<link rel="icon" type="image/png" href="assets/icone-192.png">
+<link rel="apple-touch-icon" href="assets/icone-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12314f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div id="site-publico">
+
+  <header class="cabecalho">
+    <div class="container">
+      <a href="#topo" class="marca">
+        <img src="assets/logo.jpeg" alt="Receita Segura">
+        <span class="marca-texto">Receita Segura<small>plataforma médica</small></span>
+      </a>
+
+      <nav class="nav-desktop">
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#seguranca">Segurança</a>
+        <button class="botao-entrar" data-abrir-auth>Entrar</button>
+      </nav>
+
+      <button class="botao-menu" id="botao-menu" aria-label="Abrir menu" aria-expanded="false">
+        <span></span>
+      </button>
+    </div>
+
+    <nav class="menu-mobile" id="menu-mobile">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#seguranca">Segurança</a>
+      <button class="botao-entrar" data-abrir-auth>Entrar</button>
+    </nav>
+  </header>
+
+  <main id="topo">
+    <section class="hero">
+      <div class="container">
+        <div>
+          <span class="selo">℞ Assinatura digital de receitas</span>
+          <h1>A receita do seu paciente, <em>sem risco</em> de se perder.</h1>
+          <p>Médicos emitem e assinam digitalmente cada receita. Pacientes recebem um documento legível, verificável e sempre disponível — chega de papel perdido ou letra ilegível.</p>
+          <div class="cta-grupo">
+            <button class="botao botao-primario" data-abrir-auth="medico">Sou médico(a)</button>
+            <button class="botao botao-secundario" data-abrir-auth="paciente">Sou paciente</button>
+          </div>
+          <p class="nota-demo">Ambiente de demonstração — dados fictícios, guardados no servidor do projeto.</p>
+        </div>
+
+        <div class="receituario">
+          <div class="receituario-topo">
+            <div>
+              <strong>Dra. Camila Duarte</strong>
+              <span>CRM 12345-AM · Clínica Geral</span>
+            </div>
+            <span class="rx-simbolo">℞</span>
+          </div>
+          <ul class="receituario-lista">
+            <li><strong>Amoxicilina 500mg</strong><span>de 8 em 8h, por 7 dias</span></li>
+            <li><strong>Dipirona 1g</strong><span>se dor, até de 6 em 6h</span></li>
+            <li><strong>Repouso relativo</strong><span>por 3 dias</span></li>
+          </ul>
+          <span class="assinado">✓ ASSINADO DIGITALMENTE</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao" id="como-funciona">
+      <div class="container">
+        <div class="secao-titulo">
+          <h2>Como funciona</h2>
+          <p>Três passos entre a consulta e a farmácia — nessa ordem, sempre.</p>
+        </div>
+        <div class="passos">
+          <div class="passo">
+            <span class="passo-numero">01</span>
+            <h3>Médico prescreve</h3>
+            <p>O médico preenche a receita em um formulário estruturado — medicamento, dosagem e posologia, sem letra ilegível.</p>
+          </div>
+          <div class="passo">
+            <span class="passo-numero">02</span>
+            <h3>Assina digitalmente</h3>
+            <p>Ao confirmar, a receita recebe uma assinatura digital única, vinculada ao médico e ao conteúdo exato do documento.</p>
+          </div>
+          <div class="passo">
+            <span class="passo-numero">03</span>
+            <h3>Paciente recebe</h3>
+            <p>A receita assinada aparece na conta do paciente, pronta para ser lida, apresentada na farmácia ou impressa.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao secao-alt" id="seguranca">
+      <div class="container">
+        <div class="secao-titulo">
+          <h2>Feita para ser verificável</h2>
+          <p>Cada receita assinada carrega um identificador criptográfico próprio, gerado a partir do conteúdo exato do documento.</p>
+        </div>
+        <div class="seguranca-grid">
+          <ul class="lista-seguranca">
+            <li><strong>Assinatura vinculada ao conteúdo</strong><span>Se qualquer detalhe da receita mudar, a assinatura deixa de corresponder — alterações são evidentes.</span></li>
+            <li><strong>Acesso individual por login</strong><span>Médicos e pacientes têm contas separadas; cada um só acessa o que lhe pertence.</span></li>
+            <li><strong>Sempre disponível</strong><span>Sem papel para perder — a receita fica guardada na conta do paciente, legível a qualquer momento.</span></li>
+          </ul>
+
+          <div class="cartao-verificacao">
+            <span class="status">✓ Assinatura verificada</span>
+            <dl>
+              <div class="linha-verificacao"><dt>Documento</dt><dd>Receita #RS-2298</dd></div>
+              <div class="linha-verificacao"><dt>Emitido por</dt><dd>Dra. Camila Duarte</dd></div>
+              <div class="linha-verificacao"><dt>CRM</dt><dd>12345-AM</dd></div>
+              <div class="linha-verificacao"><dt>Assinado em</dt><dd>14/08/2026 09:41</dd></div>
+              <div class="linha-verificacao"><dt>Hash (SHA-256)</dt><dd>7f3a9c…e21b</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <div class="container">
+      <a href="#topo" class="marca">
+        <img src="assets/logo.jpeg" alt="Receita Segura">
+        <span>Receita Segura</span>
+      </a>
+      <p class="descricao">Receitas médicas legíveis, assinadas digitalmente e sempre disponíveis para médicos e pacientes.</p>
+      <div class="rodape-links">
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#seguranca">Segurança</a>
+        <a href="/docs" target="_blank" rel="noopener">API (documentação)</a>
+        <button data-abrir-auth style="background:none;border:none;color:inherit;padding:0;font:inherit;">Entrar</button>
+      </div>
+      <p class="rodape-legal">PROTÓTIPO ACADÊMICO DE DEMONSTRAÇÃO — USE APENAS DADOS FICTÍCIOS. NÃO É UM DISPOSITIVO MÉDICO CERTIFICADO E AS RECEITAS NÃO TÊM VALIDADE LEGAL.</p>
+    </div>
+  </footer>
+</div>
+
+<div class="tela-auth oculto" id="tela-auth">
+  <div class="cartao-auth">
+    <button class="fechar-modal" data-fechar-auth aria-label="Voltar ao início" style="position:static;float:right;">✕</button>
+    <h2>Entrar</h2>
+    <p>Acesse sua conta para continuar.</p>
+
+    <div class="alternador">
+      <button type="button" class="ativo" data-papel="medico">Sou médico(a)</button>
+      <button type="button" data-papel="paciente">Sou paciente</button>
+    </div>
+
+    <p class="mensagem-erro oculto" id="erro-login">E-mail ou senha incorretos. Confira as credenciais de demonstração abaixo.</p>
+
+    <form id="form-login">
+      <div class="campo">
+        <label for="email-login">E-mail</label>
+        <input type="email" id="email-login" autocomplete="username" required>
+      </div>
+      <div class="campo">
+        <label for="senha-login">Senha</label>
+        <input type="password" id="senha-login" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="botao botao-primario" style="width:100%;">Entrar</button>
+    </form>
+
+    <button type="button" class="botao-adicionar oculto" id="botao-primeiro-acesso">Primeiro acesso? Tenho um código do meu médico</button>
+
+    <form id="form-ativar" class="oculto">
+      <p class="mensagem-erro oculto" id="erro-ativar"></p>
+      <div class="campo">
+        <label for="codigo-ativar">Código de convite</label>
+        <input type="text" id="codigo-ativar" placeholder="Ex.: ABCD-EF23" autocomplete="one-time-code" required>
+      </div>
+      <div class="campo">
+        <label for="email-ativar">E-mail</label>
+        <input type="email" id="email-ativar" autocomplete="username" required>
+      </div>
+      <div class="campo">
+        <label for="senha-ativar">Crie uma senha (mín. 6 caracteres)</label>
+        <input type="password" id="senha-ativar" autocomplete="new-password" minlength="6" required>
+      </div>
+      <button type="submit" class="botao botao-primario" style="width:100%;">Criar minha conta</button>
+      <button type="button" class="botao botao-secundario" id="voltar-login" style="width:100%;margin-top:8px;">Voltar ao login</button>
+    </form>
+
+    <div class="credenciais-demo" id="credenciais-demo">
+      Demonstração — médico(a): <code>camila@clinica.com</code> / <code>demo123</code>
+    </div>
+  </div>
+</div>
+
+<div class="painel" id="painel-medico">
+  <header class="painel-cabecalho">
+    <div class="container">
+      <a href="#" class="marca">
+        <img src="assets/logo.jpeg" alt="Receita Segura">
+        <span class="marca-texto">Receita Segura</span>
+      </a>
+      <div class="painel-usuario">
+        <span class="avatar" id="medico-avatar"></span>
+        <div>
+          <strong id="medico-nome"></strong>
+          <span id="medico-info"></span>
+        </div>
+        <button class="botao-sair" data-sair>Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="aviso-protótipo">PROTÓTIPO ACADÊMICO — USE APENAS DADOS FICTÍCIOS.</div>
+
+  <div class="painel-corpo">
+    <div class="container">
+      <h1 id="medico-saudacao">Bem-vindo(a)</h1>
+      <p class="sub">Emita e assine receitas para seus pacientes.</p>
+
+      <div class="grade-painel">
+        <div class="cartao">
+          <h2>Meus pacientes</h2>
+          <ul class="lista-pacientes" id="lista-pacientes"></ul>
+          <p class="credenciais-demo oculto" id="convite-paciente"></p>
+
+          <div class="novo-paciente-form oculto" id="novo-paciente-form">
+            <div class="campo" style="margin-bottom:10px;">
+              <label for="novo-paciente-nome">Nome do paciente</label>
+              <input type="text" id="novo-paciente-nome" placeholder="Nome completo">
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="botao botao-primario" id="confirmar-novo-paciente" style="flex:1;">Adicionar</button>
+              <button type="button" class="botao botao-secundario" id="cancelar-novo-paciente" style="flex:1;">Cancelar</button>
+            </div>
+          </div>
+
+          <button type="button" class="botao-adicionar" id="botao-novo-paciente">+ Novo paciente</button>
+        </div>
+
+        <div class="cartao">
+          <h2>Nova receita</h2>
+          <form id="form-receita">
+            <div class="campo">
+              <label for="paciente-receita">Paciente</label>
+              <input type="text" id="paciente-receita" placeholder="Selecione na lista “Meus pacientes”" readonly required>
+              <input type="hidden" id="paciente-receita-id">
+            </div>
+
+            <div id="lista-medicamentos"></div>
+            <datalist id="catalogo-medicamentos"></datalist>
+            <button type="button" class="botao-adicionar" id="botao-adicionar-medicamento">+ Adicionar medicamento</button>
+
+            <div class="campo">
+              <label for="orientacoes">Orientações gerais</label>
+              <textarea id="orientacoes" placeholder="Ex.: repouso, retorno em 7 dias..."></textarea>
+            </div>
+
+            <p class="mensagem-erro oculto" id="erro-receita"></p>
+
+            <div class="rodape-form">
+              <button type="submit" class="botao botao-primario">Revisar e assinar digitalmente</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="cartao" style="margin-top:24px;">
+        <h2>Receitas emitidas</h2>
+        <ul class="tabela-receitas" id="lista-emitidas"></ul>
+      </div>
+
+      <div class="cartao" style="margin-top:24px;">
+        <h2>Histórico e atividade</h2>
+        <div id="medico-historico"></div>
+        <ul class="lista-atividade" id="medico-atividade"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="painel" id="painel-paciente">
+  <header class="painel-cabecalho">
+    <div class="container">
+      <a href="#" class="marca">
+        <img src="assets/logo.jpeg" alt="Receita Segura">
+        <span class="marca-texto">Receita Segura</span>
+      </a>
+      <div class="painel-usuario">
+        <span class="avatar" id="paciente-avatar"></span>
+        <div>
+          <strong id="paciente-nome"></strong>
+          <span>Paciente</span>
+        </div>
+        <button class="botao-sair" data-sair>Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="aviso-protótipo">PROTÓTIPO ACADÊMICO — USE APENAS DADOS FICTÍCIOS.</div>
+
+  <div class="painel-corpo">
+    <div class="container">
+      <h1 id="paciente-saudacao">Olá</h1>
+      <p class="sub">Suas receitas assinadas digitalmente, sempre à mão.</p>
+
+      <div class="cartao">
+        <h2>Minhas receitas</h2>
+        <ul class="tabela-receitas" id="lista-paciente-receitas"></ul>
+      </div>
+
+      <div class="cartao" style="margin-top:24px;">
+        <h2>Histórico e atividade</h2>
+        <div id="paciente-historico"></div>
+        <ul class="lista-atividade" id="paciente-atividade"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sobreposicao" id="modal-assinar">
+  <div class="modal">
+    <button class="fechar-modal" data-fechar-modal aria-label="Fechar">✕</button>
+    <h2 style="font-size:1.2rem;">Assinar digitalmente</h2>
+    <p style="color:var(--cinza-700);font-size:0.9rem;">Confirme os dados da receita antes de assinar.</p>
+
+    <div id="resumo-receita" style="margin:16px 0;font-size:0.9rem;"></div>
+
+    <div class="selo-assinatura oculto" id="selo-confirmado">
+      <span class="rx-simbolo">℞</span>
+      <strong>ASSINADO DIGITALMENTE</strong>
+    </div>
+
+    <div class="modal-acoes">
+      <button class="botao botao-secundario" data-fechar-modal>Cancelar</button>
+      <button class="botao botao-primario" id="botao-confirmar-assinatura">Confirmar e assinar</button>
+    </div>
+  </div>
+</div>
+
+<div class="sobreposicao" id="modal-detalhe">
+  <div class="modal">
+    <button class="fechar-modal" data-fechar-modal aria-label="Fechar">✕</button>
+    <h2 style="font-size:1.2rem;">Detalhe da receita</h2>
+    <div id="conteudo-detalhe" style="margin-top:16px;"></div>
+  </div>
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>
