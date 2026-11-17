@@ -6,6 +6,7 @@ const estado = {
   usuario: null,
   pacientes: [],
   receitas: [],
+  documentos: [],
   catalogo: [],
   proximoIdMedicamento: 1
 };
@@ -29,8 +30,12 @@ const iniciais = (nome) => nome.replace(/^(Dra?\.)\s+/i, '').split(/\s+/).filter
 const STATUS = {
   ativa: { texto: '✓ assinada', classe: '' },
   dispensada: { texto: '✓ dispensada', classe: 'status-dispensada' },
-  cancelada: { texto: '✕ cancelada', classe: 'status-cancelada' }
+  cancelada: { texto: '✕ cancelada', classe: 'status-cancelada' },
+  // documentos médicos (masculino)
+  ativo: { texto: '✓ assinado', classe: '' },
+  cancelado: { texto: '✕ cancelado', classe: 'status-cancelada' }
 };
+const estaAtivo = (status) => status === 'ativa' || status === 'ativo';
 
 const formatarData = (iso) => iso ? iso.slice(0, 10).split('-').reverse().join('/') : '—';
 const formatarDataHora = (iso) => {
@@ -211,7 +216,7 @@ async function abrirPainelMedico() {
   fecharTodosPaineis();
   painelMedico.classList.add('ativo');
   window.scrollTo(0, 0);
-  await Promise.all([carregarPacientes(), carregarReceitas(), carregarCatalogo(), carregarHistoricoEAtividade()]);
+  await Promise.all([carregarPacientes(), carregarReceitas(), carregarDocumentos(), carregarCatalogo(), carregarHistoricoEAtividade()]);
 }
 
 async function abrirPainelPaciente() {
@@ -223,7 +228,7 @@ async function abrirPainelPaciente() {
   fecharTodosPaineis();
   painelPaciente.classList.add('ativo');
   window.scrollTo(0, 0);
-  await Promise.all([carregarReceitas(), carregarHistoricoEAtividade()]);
+  await Promise.all([carregarReceitas(), carregarDocumentos(), carregarHistoricoEAtividade()]);
 }
 
 async function sair() {
@@ -233,9 +238,18 @@ async function sair() {
   estado.usuario = null;
   estado.pacientes = [];
   estado.receitas = [];
+  estado.documentos = [];
+  limparFormulariosAoSair();
   fecharTodosPaineis();
   sitePublico.classList.remove('oculto');
   window.scrollTo(0, 0);
+}
+
+function limparFormulariosAoSair() {
+  $('#paciente-receita-id').value = '';
+  $('#paciente-receita').value = '';
+  formulariosDocumento.forEach(limparFormularioDocumento);
+  ativarAba('receita');
 }
 
 $$('[data-sair]').forEach(botao => botao.addEventListener('click', sair));
@@ -269,6 +283,7 @@ function selecionarPaciente(id) {
   $('#paciente-receita-id').value = paciente.id;
   $('#paciente-receita').value = paciente.nome;
   renderizarPacientes();
+  sincronizarPacienteNosFormularios(paciente);
 
   const convite = $('#convite-paciente');
   if (paciente.codigoConvite) {
@@ -355,6 +370,7 @@ novaLinhaMedicamento('Amoxicilina 500mg', 'de 8 em 8h, por 7 dias');
 
 const modalAssinar = $('#modal-assinar');
 let receitaPendente = null;
+let documentoPendente = null; // {endpoint, corpo, formulario} — encaminhamento, relatório ou atestado
 
 $('#form-receita').addEventListener('submit', (evento) => {
   evento.preventDefault();
@@ -369,6 +385,8 @@ $('#form-receita').addEventListener('submit', (evento) => {
   if (medicamentos.length === 0) return mostrarErro('#erro-receita', 'Adicione pelo menos um medicamento.');
 
   receitaPendente = { pacienteId, medicamentos, orientacoes: $('#orientacoes').value.trim() };
+  documentoPendente = null;
+  $('#assinar-descricao').textContent = 'Confirme os dados da receita antes de assinar.';
 
   $('#resumo-receita').innerHTML = `
     <p><strong>Paciente:</strong> ${escapar($('#paciente-receita').value)}</p>
@@ -384,6 +402,7 @@ $('#form-receita').addEventListener('submit', (evento) => {
 
 // A assinatura acontece no servidor, com a chave privada do médico.
 $('#botao-confirmar-assinatura').addEventListener('click', async (evento) => {
+  if (documentoPendente) return assinarDocumento(evento.currentTarget);
   if (!receitaPendente) return;
   const botao = evento.currentTarget;
   botao.disabled = true;
@@ -510,6 +529,7 @@ const modalDetalhe = $('#modal-detalhe');
 function abrirDetalheReceita(receita, { compartilhamento = null } = {}) {
   const ativa = receita.status === 'ativa';
   const souMedico = !compartilhamento && estado.usuario?.papel === 'medico';
+  $('#titulo-detalhe').textContent = 'Detalhe da receita';
 
   $('#conteudo-detalhe').innerHTML = `
     <div class="folha-receita" id="folha-atual">
@@ -589,7 +609,7 @@ async function verificarAssinatura(codigo) {
       selo.textContent = '✕ ASSINATURA INVÁLIDA — RECEITA ALTERADA';
       $('#bloco-assinatura').classList.add('invalida');
     } else {
-      selo.textContent = resultado.status === 'ativa' ? '✓ ASSINATURA VERIFICADA' : `✓ ASSINATURA VÁLIDA · ${resultado.status.toUpperCase()}`;
+      selo.textContent = estaAtivo(resultado.status) ? '✓ ASSINATURA VERIFICADA' : `✓ ASSINATURA VÁLIDA · ${resultado.status.toUpperCase()}`;
     }
     $('#acao-dispensar')?.classList.toggle('oculto', !resultado.podeSerDispensada);
   } catch {
@@ -602,16 +622,18 @@ function mostrarResultadoAcao(html) {
 }
 
 // API de PDF: o arquivo é gerado no servidor (precisa do token, por isso fetch + blob).
-async function baixarPdf(codigo, compartilhamento) {
-  const url = compartilhamento
-    ? `/api/compartilhamentos/acesso/${encodeURIComponent(compartilhamento)}/pdf`
-    : `/api/pdf/${encodeURIComponent(codigo)}`;
+async function baixarPdf(codigo, compartilhamento, { documento = false } = {}) {
+  const url = documento
+    ? `/api/documentos/${encodeURIComponent(codigo)}/pdf`
+    : compartilhamento
+      ? `/api/compartilhamentos/acesso/${encodeURIComponent(compartilhamento)}/pdf`
+      : `/api/pdf/${encodeURIComponent(codigo)}`;
   try {
     const resposta = await fetch(url, { headers: lerToken() ? { Authorization: `Bearer ${lerToken()}` } : {} });
     if (!resposta.ok) throw new Error((await resposta.json().catch(() => ({}))).erro || 'Não foi possível gerar o PDF.');
     const link = document.createElement('a');
     link.href = URL.createObjectURL(await resposta.blob());
-    link.download = `receita-${codigo}.pdf`;
+    link.download = `${documento ? 'documento' : 'receita'}-${codigo}.pdf`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 10000);
   } catch (erro) {
@@ -661,17 +683,19 @@ async function dispensarReceita(token) {
 // ---------- Telas públicas (sem login): QR Code e link compartilhado ----------
 
 async function abrirVerificacaoPublica(codigo) {
+  $('#titulo-detalhe').textContent = 'Verificação de autenticidade';
   $('#conteudo-detalhe').innerHTML = '<p>Verificando…</p>';
   modalDetalhe.classList.add('ativo');
   try {
     const v = await api(`/verificar/${encodeURIComponent(codigo)}`);
-    const titulo = !v.valida ? '✕ Assinatura inválida' : v.status === 'ativa' ? '✓ Assinatura verificada' : `⚠ Receita ${v.status}`;
-    const cor = !v.valida || v.status === 'cancelada' ? 'style="background:#fde8e8;color:#b42318;"' : '';
+    const rotulo = v.tipoRotulo || 'Receita';
+    const titulo = !v.valida ? '✕ Assinatura inválida' : estaAtivo(v.status) ? '✓ Assinatura verificada' : `⚠ ${rotulo} ${v.status}`;
+    const cor = !v.valida || v.status === 'cancelada' || v.status === 'cancelado' ? 'style="background:#fde8e8;color:#b42318;"' : '';
     $('#conteudo-detalhe').innerHTML = `
       <div class="cartao-verificacao">
         <span class="status" ${cor}>${titulo}</span>
         <dl>
-          <div class="linha-verificacao"><dt>Documento</dt><dd>Receita #${escapar(v.codigo)}</dd></div>
+          <div class="linha-verificacao"><dt>Documento</dt><dd>${escapar(rotulo)} #${escapar(v.codigo)}</dd></div>
           <div class="linha-verificacao"><dt>Emitido por</dt><dd>${escapar(v.medico)}</dd></div>
           <div class="linha-verificacao"><dt>CRM</dt><dd>${escapar(v.crm)}</dd></div>
           <div class="linha-verificacao"><dt>Assinado em</dt><dd>${formatarDataHora(v.emitidaEm)}</dd></div>
@@ -679,7 +703,7 @@ async function abrirVerificacaoPublica(codigo) {
           <div class="linha-verificacao"><dt>Hash (SHA-256)</dt><dd>${escapar(formatarHashCurto(v.hash))}</dd></div>
         </dl>
       </div>
-      <p style="font-size:0.8rem;color:var(--cinza-700);margin-top:12px;">Por privacidade, medicamentos e paciente só aparecem para quem tem o link de compartilhamento.</p>
+      <p style="font-size:0.8rem;color:var(--cinza-700);margin-top:12px;">Por privacidade, o conteúdo clínico e os dados do paciente não aparecem nesta verificação pública.</p>
     `;
   } catch (erro) {
     $('#conteudo-detalhe').innerHTML = `<p class="mensagem-erro">${escapar(erro.message)}</p>`;
@@ -713,6 +737,335 @@ document.addEventListener('keydown', (evento) => {
     modalDetalhe.classList.remove('ativo');
   }
 });
+
+// ---------- Documentos médicos: encaminhamento, relatório/laudo e atestado ----------
+
+const ROTULOS_DOCUMENTO = { encaminhamento: 'Encaminhamento médico', relatorio: 'Relatório médico / laudo', atestado: 'Atestado médico' };
+const ROTULOS_URGENCIA = { rotina: 'Rotina (eletivo)', prioritario: 'Prioritário', urgente: 'Urgente' };
+
+const mascaraCpf = (valor) => String(valor || '').replace(/\D/g, '').slice(0, 11)
+  .replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+
+function mascaraTelefone(valor) {
+  const d = String(valor || '').replace(/\D/g, '').slice(0, 11);
+  if (d.length === 0) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+const dataLocalISO = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+// --- Abas (Receita | Encaminhamento | Relatório / Laudo | Atestado) ---
+
+const abas = [...$$('.aba')];
+
+function ativarAba(nome, { foco = false } = {}) {
+  abas.forEach(aba => {
+    const ativa = aba.dataset.aba === nome;
+    aba.classList.toggle('ativo', ativa);
+    aba.setAttribute('aria-selected', String(ativa));
+    aba.tabIndex = ativa ? 0 : -1;
+    if (ativa && foco) aba.focus();
+  });
+  $$('[data-painel-aba]').forEach(painel => painel.classList.toggle('oculto', painel.dataset.painelAba !== nome));
+}
+
+abas.forEach((aba, i) => {
+  aba.addEventListener('click', () => ativarAba(aba.dataset.aba));
+  aba.addEventListener('keydown', (evento) => {  // setas e Home/End, como em qualquer lista de abas
+    const destino = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: abas.length - 1 }[evento.key];
+    if (destino === undefined) return;
+    evento.preventDefault();
+    ativarAba(abas[(destino + abas.length) % abas.length].dataset.aba, { foco: true });
+  });
+});
+
+// --- Formulários ---
+
+const formulariosDocumento = [...$$('.form-documento')];
+
+function atualizarConsentimento(form) {
+  // Sem a autorização do paciente, hipótese diagnóstica e CID ficam bloqueados (e vazios).
+  const autorizado = form.querySelector('[name=consentimentoCid]').checked;
+  form.querySelectorAll('[data-requer-consentimento]').forEach(campo => {
+    campo.disabled = !autorizado;
+    if (!autorizado) campo.value = '';
+  });
+}
+
+function atualizarFinalidade(form) {
+  const seletor = form.querySelector('[data-alterna-finalidade]');
+  if (!seletor) return;
+  form.querySelectorAll('[data-se-finalidade]').forEach(grupo => {
+    const mostrar = grupo.dataset.seFinalidade === seletor.value;
+    grupo.classList.toggle('oculto', !mostrar);
+    grupo.querySelectorAll('input, select, textarea').forEach(campo => { campo.disabled = !mostrar; });
+  });
+}
+
+function prepararDatas(form) {
+  const hoje = dataLocalISO();
+  form.querySelectorAll('[data-hoje]').forEach(campo => { campo.value = hoje; campo.max = hoje; });
+  form.querySelectorAll('[data-passado]').forEach(campo => { campo.max = hoje; });
+}
+
+function preencherPaciente(form, paciente) {
+  form.querySelector('[data-paciente-nome]').value = paciente?.nome || '';
+  form.querySelector('[name=dataNascimento]').value = paciente?.dataNascimento || '';
+  form.querySelector('[name=cpf]').value = mascaraCpf(paciente?.cpf);
+  form.querySelector('[name=telefone]').value = mascaraTelefone(paciente?.telefone);
+}
+
+function sincronizarPacienteNosFormularios(paciente) {
+  formulariosDocumento.forEach(form => preencherPaciente(form, paciente));
+}
+
+function limparFormularioDocumento(form) {
+  form.reset();
+  atualizarConsentimento(form);
+  atualizarFinalidade(form);
+  prepararDatas(form);
+  const paciente = estado.pacientes.find(p => p.id === Number($('#paciente-receita-id').value));
+  preencherPaciente(form, paciente);
+  ocultarErroForm(form);
+}
+
+const mostrarErroForm = (form, mensagem) => {
+  const caixa = form.querySelector('[data-erro]');
+  caixa.textContent = mensagem;
+  caixa.classList.remove('oculto');
+};
+const ocultarErroForm = (form) => form.querySelector('[data-erro]').classList.add('oculto');
+
+formulariosDocumento.forEach(form => {
+  form.querySelector('[data-slot="paciente"]').replaceWith($('#tpl-paciente').content.cloneNode(true));
+
+  form.querySelectorAll('[data-mascara]').forEach(campo => {
+    const aplicar = campo.dataset.mascara === 'cpf' ? mascaraCpf : mascaraTelefone;
+    campo.addEventListener('input', () => { campo.value = aplicar(campo.value); });
+  });
+  form.querySelectorAll('[name=cid10], [name=cid11]').forEach(campo => {
+    campo.addEventListener('input', () => { campo.value = campo.value.toUpperCase(); });
+  });
+  form.querySelector('[name=consentimentoCid]').addEventListener('change', () => atualizarConsentimento(form));
+  form.querySelector('[data-alterna-finalidade]')?.addEventListener('change', () => atualizarFinalidade(form));
+
+  atualizarConsentimento(form);
+  atualizarFinalidade(form);
+  prepararDatas(form);
+
+  form.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    ocultarErroForm(form);
+    const pacienteId = Number($('#paciente-receita-id').value);
+    if (!pacienteId) return mostrarErroForm(form, 'Selecione um paciente na lista “Meus pacientes”.');
+
+    const corpo = lerFormulario(form, pacienteId);
+    documentoPendente = { endpoint: form.dataset.endpoint, corpo, formulario: form };
+    receitaPendente = null;
+
+    $('#resumo-receita').innerHTML = resumoDocumentoHtml(form.dataset.tipo, corpo, form.querySelector('[data-paciente-nome]').value);
+    $('#assinar-descricao').textContent = 'Confirme os dados do documento antes de assinar.';
+    $('#selo-confirmado').classList.add('oculto');
+    $('#botao-confirmar-assinatura').classList.remove('oculto');
+    modalAssinar.classList.add('ativo');
+  });
+});
+
+// Campos desabilitados (CID sem autorização, grupos de outra finalidade) não entram no envio.
+function lerFormulario(form, pacienteId) {
+  const dados = {};
+  form.querySelectorAll('[name]').forEach(campo => {
+    if (campo.disabled) return;
+    dados[campo.name] = campo.type === 'checkbox' ? campo.checked : campo.value.trim();
+  });
+  const { dataNascimento = '', cpf = '', telefone = '', ...resto } = dados;
+  if ('diasAfastamento' in resto) resto.diasAfastamento = resto.diasAfastamento ? Number(resto.diasAfastamento) : null;
+  return { pacienteId, paciente: { dataNascimento, cpf, telefone }, ...resto };
+}
+
+function resumoDocumentoHtml(tipo, c, nomePaciente) {
+  const resumir = (texto, max = 220) => (texto.length > max ? `${texto.slice(0, max)}…` : texto);
+  const cid = [c.cid10 && `CID-10 ${c.cid10}`, c.cid11 && `CID-11 ${c.cid11}`].filter(Boolean).join(' · ');
+  const linhas = [['Documento', ROTULOS_DOCUMENTO[tipo]], ['Paciente', nomePaciente]];
+
+  if (tipo === 'encaminhamento') {
+    linhas.push(['Encaminhar para', [c.especialidadeDestino, c.servicoDestino].filter(Boolean).join(' — ')],
+      ['Prioridade', ROTULOS_URGENCIA[c.urgencia]], ['Motivo', resumir(c.motivo)]);
+    if (c.hipoteseDiagnostica) linhas.push(['Hipótese diagnóstica', resumir(c.hipoteseDiagnostica)]);
+  } else if (tipo === 'relatorio') {
+    if (c.finalidade) linhas.push(['Finalidade', c.finalidade]);
+    linhas.push(['Diagnóstico', resumir(c.diagnostico)]);
+    if (c.limitacoes) linhas.push(['Limitações', resumir(c.limitacoes)]);
+    if (c.recomendacoes) linhas.push(['Recomendações', resumir(c.recomendacoes)]);
+  } else {
+    const dias = c.diasAfastamento;
+    linhas.push(['Finalidade', c.finalidade === 'afastamento'
+      ? `Afastamento por ${dias} dia${dias === 1 ? '' : 's'}` : 'Comparecimento a atendimento'],
+    ['Data do atendimento', formatarData(c.dataAtendimento)]);
+  }
+  if (cid) linhas.push(['CID', `${cid} (incluído com autorização do paciente)`]);
+  else if (!c.consentimentoCid) linhas.push(['CID', 'não incluído']);
+
+  return linhas.map(([rotulo, valor]) => `<p style="margin:6px 0;"><strong>${escapar(rotulo)}:</strong> ${escapar(valor)}</p>`).join('');
+}
+
+async function assinarDocumento(botao) {
+  const { endpoint, corpo, formulario } = documentoPendente;
+  botao.disabled = true;
+  try {
+    const { documento } = await api(endpoint, { metodo: 'POST', corpo });
+    estado.documentos.unshift(documento);
+    $('#selo-confirmado').classList.remove('oculto');
+    botao.classList.add('oculto');
+    renderizarDocumentos();
+    carregarHistoricoEAtividade();
+    await carregarPacientes(); // a ficha do paciente (nascimento, CPF, telefone) fica guardada para os próximos
+
+    setTimeout(() => {
+      modalAssinar.classList.remove('ativo');
+      limparFormularioDocumento(formulario);
+      documentoPendente = null;
+      abrirDetalheDocumento(documento); // já abre o documento pronto para baixar o PDF
+    }, 1200);
+  } catch (erro) {
+    modalAssinar.classList.remove('ativo');
+    documentoPendente = null;
+    mostrarErroForm(formulario, erro.message);
+  } finally {
+    botao.disabled = false;
+  }
+}
+
+// --- Listas ---
+
+async function carregarDocumentos() {
+  try {
+    const { documentos } = await api('/documentos');
+    estado.documentos = documentos;
+  } catch (erro) {
+    estado.documentos = [];
+    console.error(erro);
+  }
+  renderizarDocumentos();
+}
+
+function renderizarDocumentos() {
+  const medico = estado.usuario?.papel === 'medico';
+  const lista = $(medico ? '#lista-documentos-emitidos' : '#lista-paciente-documentos');
+  lista.innerHTML = '';
+  if (estado.documentos.length === 0) {
+    lista.innerHTML = `<p style="color:var(--cinza-700);font-size:0.9rem;">${medico ? 'Nenhum documento emitido ainda.' : 'Nenhum documento disponível ainda.'}</p>`;
+    return;
+  }
+  estado.documentos.forEach(doc => {
+    const li = document.createElement('li');
+    const botao = document.createElement('button');
+    botao.className = 'item-receita';
+    botao.innerHTML = `
+      <span>
+        <strong>${escapar(medico ? doc.paciente : doc.medico)}</strong>
+        <span>${escapar(doc.tipoRotulo)} · #${escapar(doc.id)} · ${formatarDataHora(doc.emitidoEm)}</span>
+      </span>
+      <span class="assinado ${STATUS[doc.status]?.classe || ''}" style="white-space:nowrap;">${STATUS[doc.status]?.texto || '✓ assinado'}</span>
+    `;
+    botao.addEventListener('click', () => abrirDetalheDocumento(doc));
+    li.appendChild(botao);
+    lista.appendChild(li);
+  });
+}
+
+// --- Detalhe do documento (a mesma folha serve para tela, PDF e impressão) ---
+
+function abrirDetalheDocumento(doc) {
+  const ativo = estaAtivo(doc.status);
+  const souMedico = estado.usuario?.papel === 'medico';
+  const p = doc.pacienteDados || {};
+  const dadosPaciente = [
+    p.dataNascimento && `Nasc.: ${formatarData(p.dataNascimento)}`,
+    p.cpf && `CPF: ${mascaraCpf(p.cpf)}`,
+    p.telefone && `Tel.: ${mascaraTelefone(p.telefone)}`
+  ].filter(Boolean).join(' · ');
+
+  $('#titulo-detalhe').textContent = doc.tipoRotulo;
+  $('#conteudo-detalhe').innerHTML = `
+    <div class="folha-receita" id="folha-atual">
+      <div class="folha-topo">
+        <div class="folha-marca">
+          <img src="assets/logo.jpeg" alt="Receita Segura">
+          <div>
+            <strong>Receita Segura</strong>
+            <span>documento médico digital</span>
+          </div>
+        </div>
+        <span class="folha-tipo">${escapar(doc.tipoRotulo)}</span>
+      </div>
+
+      <div class="folha-corpo">
+        ${ativo ? '' : `<p class="mensagem-erro"><strong>Documento cancelado</strong>${doc.statusMotivo ? ` — ${escapar(doc.statusMotivo)}` : ''}.</p>`}
+        <p class="folha-titulo-doc">${escapar(doc.titulo)}</p>
+        <div class="folha-linha">
+          <span><strong style="color:var(--tinta);">${escapar(doc.medico)}</strong><br>CRM ${escapar(doc.crm)}${doc.especialidade ? ` · ${escapar(doc.especialidade)}` : ''}</span>
+          <span style="text-align:right;">#${escapar(doc.id)}<br>${formatarDataHora(doc.emitidoEm)}</span>
+        </div>
+        <div class="folha-linha" style="margin-bottom:0;">
+          <span><strong style="color:var(--tinta);">Paciente:</strong> ${escapar(doc.paciente)}${dadosPaciente ? `<br>${escapar(dadosPaciente)}` : ''}</span>
+        </div>
+      </div>
+
+      ${doc.secoes.map(secao => secao.titulo
+        ? `<div class="folha-orientacoes" style="padding-top:14px;"><h4>${escapar(secao.titulo)}</h4><p class="texto-livre">${escapar(secao.texto)}</p></div>`
+        : `<div class="folha-orientacoes" style="padding-top:14px;"><p class="texto-atestado">${escapar(secao.texto)}</p></div>`
+      ).join('')}
+
+      <div class="folha-carimbo">
+        <strong>${escapar(doc.medico)}</strong>
+        CRM ${escapar(doc.crm)}${doc.especialidade ? ` · ${escapar(doc.especialidade)}` : ''}<br>
+        Assinado digitalmente em ${formatarDataHora(doc.emitidoEm)}
+      </div>
+
+      <div class="folha-assinatura" id="bloco-assinatura">
+        <span class="folha-selo" id="selo-verificacao">⏳ VERIFICANDO ASSINATURA…</span>
+        <span class="folha-hash">SHA-256: ${escapar(formatarHashCurto(doc.hash))}</span>
+      </div>
+
+      <div class="folha-qr">
+        <img src="/api/qrcode/${encodeURIComponent(doc.id)}.png" alt="QR Code de verificação do documento ${escapar(doc.id)}">
+        <span>Aponte a câmera para o QR Code para conferir a autenticidade deste documento.</span>
+      </div>
+
+      <p class="folha-rodape-legal">Documento gerado pela plataforma Receita Segura — verificável pelo código #${escapar(doc.id)}. Protótipo acadêmico, não possui validade legal.</p>
+    </div>
+
+    <div class="acoes-receita">
+      <button type="button" class="botao botao-primario" id="acao-pdf">📄 Baixar PDF</button>
+      <button type="button" class="botao botao-secundario" onclick="window.print()">🖨️ Imprimir</button>
+      ${souMedico && ativo ? '<button type="button" class="botao botao-perigo largura-total" id="acao-cancelar">Cancelar documento</button>' : ''}
+    </div>
+    <div id="resultado-acao"></div>
+  `;
+  modalDetalhe.classList.add('ativo');
+
+  $('#acao-pdf').addEventListener('click', () => baixarPdf(doc.id, null, { documento: true }));
+  $('#acao-cancelar')?.addEventListener('click', () => cancelarDocumento(doc.id));
+  verificarAssinatura(doc.id);
+}
+
+async function cancelarDocumento(codigo) {
+  const motivo = prompt('Motivo do cancelamento:');
+  if (!motivo || motivo.trim().length < 3) return;
+  try {
+    const { documento } = await api(`/documentos/${encodeURIComponent(codigo)}/cancelar`, { metodo: 'POST', corpo: { motivo } });
+    estado.documentos = estado.documentos.map(d => (d.id === documento.id ? documento : d));
+    renderizarDocumentos();
+    carregarHistoricoEAtividade();
+    abrirDetalheDocumento(documento);
+  } catch (erro) {
+    mostrarResultadoAcao(escapar(erro.message));
+  }
+}
 
 // ---------- Início ----------
 

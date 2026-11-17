@@ -1,18 +1,17 @@
 """11 — API de Histórico: linha do tempo e resumo das receitas."""
 import json
-import sqlite3
 from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..database import get_db
+from ..database import Conexao, Linha, get_db
 from ..dependencias import exigir_medico, usuario_logado
 from ..receitas_servico import formatar
 
 router = APIRouter(prefix="/api/historico", tags=["11. Histórico"])
 
 
-def montar_historico(linhas: list[sqlite3.Row]) -> dict:
+def montar_historico(linhas: list[Linha]) -> dict:
     receitas = [formatar(l) for l in linhas]
     contagem = Counter(m["nome"] for r in receitas for m in r["medicamentos"])
     por_mes: dict[str, list] = {}
@@ -36,14 +35,14 @@ def montar_historico(linhas: list[sqlite3.Row]) -> dict:
 
 
 @router.get("", summary="Meu histórico (médico: o que emiti; paciente: o que recebi)")
-def meu_historico(usuario=Depends(usuario_logado), db: sqlite3.Connection = Depends(get_db)):
+def meu_historico(usuario=Depends(usuario_logado), db: Conexao = Depends(get_db)):
     coluna = "medico_id" if usuario["papel"] == "medico" else "paciente_id"
     linhas = db.execute(f"SELECT * FROM receitas WHERE {coluna} = ? ORDER BY emitida_em DESC", (usuario["id"],)).fetchall()
     return montar_historico(linhas)
 
 
 @router.get("/pacientes/{paciente_id}", summary="Histórico de um paciente meu (receitas que eu emiti para ele)")
-def historico_paciente(paciente_id: int, medico=Depends(exigir_medico), db: sqlite3.Connection = Depends(get_db)):
+def historico_paciente(paciente_id: int, medico=Depends(exigir_medico), db: Conexao = Depends(get_db)):
     if not db.execute("SELECT 1 FROM medico_pacientes WHERE medico_id = ? AND paciente_id = ?",
                       (medico["id"], paciente_id)).fetchone():
         raise HTTPException(404, "Paciente não encontrado na sua lista.")

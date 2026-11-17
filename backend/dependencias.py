@@ -1,11 +1,10 @@
 """Dependências compartilhadas: usuário logado, controle de papel e auditoria."""
-import sqlite3
 from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .database import get_db
+from .database import Conexao, Linha, get_db
 from .seguranca import sha256
 
 bearer = HTTPBearer(auto_error=False)
@@ -17,8 +16,8 @@ def agora_iso() -> str:
 
 def usuario_logado(
     credenciais: HTTPAuthorizationCredentials | None = Depends(bearer),
-    db: sqlite3.Connection = Depends(get_db),
-) -> sqlite3.Row:
+    db: Conexao = Depends(get_db),
+) -> Linha:
     usuario = None
     if credenciais:
         usuario = db.execute(
@@ -43,7 +42,7 @@ def exigir_paciente(usuario=Depends(usuario_logado)):
     return usuario
 
 
-def dados_publicos(u: sqlite3.Row) -> dict:
+def dados_publicos(u: Linha) -> dict:
     """Só o que pode ir para o navegador (nunca senha nem chave privada)."""
     return {
         "id": u["id"], "papel": u["papel"], "nome": u["nome"], "email": u["email"],
@@ -51,7 +50,7 @@ def dados_publicos(u: sqlite3.Row) -> dict:
     }
 
 
-def registrar_auditoria(db: sqlite3.Connection, request: Request | None, acao: str,
+def registrar_auditoria(db: Conexao, request: Request | None, acao: str,
                         usuario_id: int | None = None, receita_codigo: str | None = None,
                         detalhe: str | None = None) -> None:
     ip = request.client.host if request and request.client else None

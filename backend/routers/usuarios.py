@@ -1,10 +1,9 @@
 """2 — API de Usuários: cadastro de médicos, perfil e troca de senha."""
-import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from ..database import get_db
+from ..database import Conexao, get_db
 from ..dependencias import dados_publicos, registrar_auditoria, usuario_logado
 from ..seguranca import conferir_senha, gerar_hash_senha, gerar_par_de_chaves
 from .autenticacao import EMAIL_REGEX, criar_sessao
@@ -31,18 +30,18 @@ class TrocarSenha(BaseModel):
 
 
 @router.post("/medicos", status_code=201, summary="Cadastrar um novo médico (gera o par de chaves de assinatura)")
-def cadastrar_medico(dados: CadastroMedico, request: Request, db: sqlite3.Connection = Depends(get_db)):
+def cadastrar_medico(dados: CadastroMedico, request: Request, db: Conexao = Depends(get_db)):
     email = dados.email.strip().lower()
     if db.execute("SELECT 1 FROM usuarios WHERE email = ?", (email,)).fetchone():
         raise HTTPException(409, "Este e-mail já está em uso.")
     publica, privada = gerar_par_de_chaves()
     cursor = db.execute(
         """INSERT INTO usuarios (papel, nome, email, senha_hash, crm, especialidade, chave_publica, chave_privada)
-           VALUES ('medico', ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES ('medico', ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
         (dados.nome.strip(), email, gerar_hash_senha(dados.senha), dados.crm, dados.especialidade.strip(), publica, privada),
-    )
-    registrar_auditoria(db, request, "medico_cadastrado", cursor.lastrowid)
-    medico = db.execute("SELECT * FROM usuarios WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    ).fetchone()
+    registrar_auditoria(db, request, "medico_cadastrado", cursor["id"])
+    medico = db.execute("SELECT * FROM usuarios WHERE id = ?", (cursor["id"],)).fetchone()
     return {"token": criar_sessao(db, medico["id"]), "usuario": dados_publicos(medico)}
 
 
@@ -53,7 +52,7 @@ def meu_perfil(usuario=Depends(usuario_logado)):
 
 @router.put("/eu", summary="Atualizar meu perfil")
 def atualizar_perfil(dados: AtualizarPerfil, request: Request, usuario=Depends(usuario_logado),
-                     db: sqlite3.Connection = Depends(get_db)):
+                     db: Conexao = Depends(get_db)):
     # Receitas já emitidas não mudam: o nome antigo continua dentro do conteúdo assinado.
     if dados.nome:
         db.execute("UPDATE usuarios SET nome = ? WHERE id = ?", (dados.nome.strip(), usuario["id"]))
@@ -65,7 +64,7 @@ def atualizar_perfil(dados: AtualizarPerfil, request: Request, usuario=Depends(u
 
 @router.put("/eu/senha", status_code=204, summary="Trocar minha senha (encerra as outras sessões)")
 def trocar_senha(dados: TrocarSenha, request: Request, usuario=Depends(usuario_logado),
-                 db: sqlite3.Connection = Depends(get_db)):
+                 db: Conexao = Depends(get_db)):
     if not conferir_senha(dados.senhaAtual, usuario["senha_hash"]):
         raise HTTPException(400, "Senha atual incorreta.")
     db.execute("UPDATE usuarios SET senha_hash = ? WHERE id = ?", (gerar_hash_senha(dados.novaSenha), usuario["id"]))

@@ -1,18 +1,18 @@
 """13 — API de Status: saúde do sistema e status das receitas (ativa, dispensada, cancelada)."""
-import sqlite3
 import time
 
+import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from ..database import get_db
+from ..database import Conexao, get_db
 from ..dependencias import agora_iso, exigir_medico, registrar_auditoria
 from ..receitas_servico import buscar_linha, formatar
 
 router = APIRouter(prefix="/api/status", tags=["13. Status"])
 
 INICIO = time.time()
-VERSAO = "2.0.0"
+VERSAO = "2.1.0"
 
 
 class Cancelamento(BaseModel):
@@ -20,15 +20,16 @@ class Cancelamento(BaseModel):
 
 
 @router.get("", summary="Saúde do sistema (servidor e banco)")
-def status_sistema(db: sqlite3.Connection = Depends(get_db)):
+def status_sistema(db: Conexao = Depends(get_db)):
     try:
         contagem = db.execute("""
             SELECT (SELECT COUNT(*) FROM usuarios WHERE papel = 'medico')   AS medicos,
                    (SELECT COUNT(*) FROM usuarios WHERE papel = 'paciente') AS pacientes,
-                   (SELECT COUNT(*) FROM receitas)                          AS receitas
+                   (SELECT COUNT(*) FROM receitas)                          AS receitas,
+                   (SELECT COUNT(*) FROM documentos)                        AS documentos
         """).fetchone()
         banco = "ok"
-    except sqlite3.Error:
+    except psycopg.Error:
         contagem, banco = None, "erro"
     return {
         "status": "ok" if banco == "ok" else "degradado",
@@ -41,7 +42,7 @@ def status_sistema(db: sqlite3.Connection = Depends(get_db)):
 
 
 @router.get("/receitas/{codigo}", summary="Status atual de uma receita (público)")
-def status_receita(codigo: str, db: sqlite3.Connection = Depends(get_db)):
+def status_receita(codigo: str, db: Conexao = Depends(get_db)):
     linha = buscar_linha(db, codigo)
     if not linha:
         raise HTTPException(404, "Receita não encontrada.")
@@ -50,7 +51,7 @@ def status_receita(codigo: str, db: sqlite3.Connection = Depends(get_db)):
 
 @router.post("/receitas/{codigo}/cancelar", summary="Médico cancela uma receita que emitiu")
 def cancelar(codigo: str, dados: Cancelamento, request: Request, medico=Depends(exigir_medico),
-             db: sqlite3.Connection = Depends(get_db)):
+             db: Conexao = Depends(get_db)):
     # O status fica fora do conteúdo assinado: cancelar não "quebra" a assinatura, só marca a receita como inutilizável.
     linha = buscar_linha(db, codigo)
     if not linha or linha["medico_id"] != medico["id"]:

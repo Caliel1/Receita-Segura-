@@ -1,17 +1,16 @@
 """Regras de negócio das receitas, usadas por várias APIs (receitas, verificação, PDF, QR...)."""
 import json
-import sqlite3
 
 from fastapi import HTTPException
 
-from .database import transacao
+from .database import Conexao, Linha, transacao
 from .dependencias import agora_iso
 from .seguranca import assinar, conferir_assinatura, json_canonico, sha256
 
 PRIMEIRO_NUMERO = 2298  # continua a numeração que o protótipo já exibia
 
 
-def emitir_receita(db: sqlite3.Connection, medico_id: int, paciente_id: int,
+def emitir_receita(db: Conexao, medico_id: int, paciente_id: int,
                    medicamentos: list[dict], orientacoes: str = "", emitida_em: str | None = None) -> dict:
     emitida_em = emitida_em or agora_iso()
     medico = db.execute("SELECT * FROM usuarios WHERE id = ? AND papel = 'medico'", (medico_id,)).fetchone()
@@ -42,14 +41,14 @@ def emitir_receita(db: sqlite3.Connection, medico_id: int, paciente_id: int,
             (codigo, medico["id"], paciente["id"], conteudo, hash_, assinatura, emitida_em),
         )
         db.execute(
-            """UPDATE medico_pacientes SET ultimo_atendimento = MAX(COALESCE(ultimo_atendimento, ''), ?)
+            """UPDATE medico_pacientes SET ultimo_atendimento = GREATEST(COALESCE(ultimo_atendimento, ''), ?)
                WHERE medico_id = ? AND paciente_id = ?""",
             (emitida_em[:10], medico["id"], paciente["id"]),
         )
     return buscar_por_codigo(db, codigo)
 
 
-def formatar(linha: sqlite3.Row | None) -> dict | None:
+def formatar(linha: Linha | None) -> dict | None:
     """Converte a linha do banco no formato que o front-end usa."""
     if not linha:
         return None
@@ -72,15 +71,15 @@ def formatar(linha: sqlite3.Row | None) -> dict | None:
     }
 
 
-def buscar_linha(db: sqlite3.Connection, codigo: str) -> sqlite3.Row | None:
+def buscar_linha(db: Conexao, codigo: str) -> Linha | None:
     return db.execute("SELECT * FROM receitas WHERE codigo = ?", (codigo.upper(),)).fetchone()
 
 
-def buscar_por_codigo(db: sqlite3.Connection, codigo: str) -> dict | None:
+def buscar_por_codigo(db: Conexao, codigo: str) -> dict | None:
     return formatar(buscar_linha(db, codigo))
 
 
-def receita_do_usuario(db: sqlite3.Connection, codigo: str, usuario: sqlite3.Row) -> sqlite3.Row:
+def receita_do_usuario(db: Conexao, codigo: str, usuario: Linha) -> Linha:
     """Devolve a receita só se o usuário for o médico que emitiu ou o paciente.
     Responde 404 também quando ela é de outra pessoa, para não revelar que existe."""
     linha = buscar_linha(db, codigo)
@@ -89,7 +88,7 @@ def receita_do_usuario(db: sqlite3.Connection, codigo: str, usuario: sqlite3.Row
     return linha
 
 
-def verificar(db: sqlite3.Connection, codigo: str) -> dict | None:
+def verificar(db: Conexao, codigo: str) -> dict | None:
     """Recalcula o hash e confere a assinatura com a chave pública do médico."""
     linha = db.execute(
         """SELECT r.*, u.chave_publica FROM receitas r JOIN usuarios u ON u.id = r.medico_id
@@ -107,6 +106,8 @@ def verificar(db: sqlite3.Connection, codigo: str) -> dict | None:
         "assinaturaConfere": assinatura_confere,
         "status": linha["status"],
         "podeSerDispensada": hash_confere and assinatura_confere and linha["status"] == "ativa",
+        "tipo": "receita",
+        "tipoRotulo": "Receita",
         "codigo": c["codigo"],
         "medico": c["medico"]["nome"],
         "crm": c["medico"]["crm"],

@@ -1,5 +1,5 @@
 // Service worker do PWA: deixa o site instalável e abrindo mesmo sem internet.
-const VERSAO_CACHE = 'receita-segura-v2';
+const VERSAO_CACHE = 'receita-segura-v3';
 const ARQUIVOS_BASE = [
   '/',
   '/css/styles.css',

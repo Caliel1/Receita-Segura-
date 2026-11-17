@@ -1,4 +1,4 @@
-"""Receita Segura — servidor FastAPI: as 13 APIs internas + os arquivos do site (PWA)."""
+"""Receita Segura — servidor FastAPI: as 14 APIs internas + os arquivos do site (PWA)."""
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -7,17 +7,19 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .database import RAIZ, criar_tabelas
-from .routers import (assinatura, auditoria, autenticacao, compartilhamento, historico, medicamentos,
-                      pacientes, pdf, qrcode_api, receitas, status, usuarios, verificacao)
-from .seed import popular_se_vazio
+from .database import RAIZ, criar_tabelas, fechar_pool
+from .routers import (assinatura, auditoria, autenticacao, compartilhamento, documentos, historico,
+                      medicamentos, pacientes, pdf, qrcode_api, receitas, status, usuarios, verificacao)
+from .seed import popular_documentos_demo, popular_se_vazio
 
 
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI):
     criar_tabelas()
     popular_se_vazio()
+    popular_documentos_demo()
     yield
+    fechar_pool()
 
 
 app = FastAPI(
@@ -28,7 +30,7 @@ app = FastAPI(
 )
 
 for modulo in (autenticacao, usuarios, pacientes, receitas, medicamentos, assinatura, verificacao,
-               qrcode_api, pdf, compartilhamento, historico, auditoria, status):
+               qrcode_api, pdf, compartilhamento, historico, auditoria, status, documentos):
     app.include_router(modulo.router)
 
 
@@ -46,8 +48,11 @@ async def erro_http(request: Request, exc: StarletteHTTPException):
 async def erro_validacao(request: Request, exc: RequestValidationError):
     primeiro = exc.errors()[0] if exc.errors() else {}
     campo = ".".join(str(p) for p in primeiro.get("loc", [])[1:]) or "corpo"
-    return JSONResponse({"erro": f"Dado inválido no campo '{campo}'.", "detalhes": jsonable(exc.errors())},
-                        status_code=422)
+    mensagem = f"Dado inválido no campo '{campo}'."
+    if primeiro.get("type") == "value_error":  # regras nossas (CPF, CID, datas...) já vêm em português
+        motivo = str(primeiro.get("msg", "")).removeprefix("Value error, ")
+        mensagem = motivo if campo == "corpo" else f"{mensagem} {motivo}"
+    return JSONResponse({"erro": mensagem, "detalhes": jsonable(exc.errors())}, status_code=422)
 
 
 def jsonable(erros):

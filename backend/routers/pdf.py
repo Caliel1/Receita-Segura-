@@ -1,6 +1,5 @@
 """9 — API de PDF: gera a receita assinada em PDF, com QR Code de verificação."""
 import io
-import sqlite3
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Request
@@ -11,7 +10,7 @@ from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader, simpleSplit
 from reportlab.pdfgen import canvas
 
-from ..database import RAIZ, get_db
+from ..database import Conexao, RAIZ, get_db
 from ..dependencias import registrar_auditoria, usuario_logado
 from ..receitas_servico import formatar, receita_do_usuario
 from .qrcode_api import gerar_png, url_verificacao
@@ -129,7 +128,7 @@ def resposta_pdf(receita: dict, assinatura: str, request: Request) -> Response:
 
 @router.get("/{codigo}", summary="Baixar a receita em PDF", response_class=Response,
             responses={200: {"content": {"application/pdf": {}}}})
-def baixar_pdf(codigo: str, request: Request, usuario=Depends(usuario_logado), db: sqlite3.Connection = Depends(get_db)):
+def baixar_pdf(codigo: str, request: Request, usuario=Depends(usuario_logado), db: Conexao = Depends(get_db)):
     linha = receita_do_usuario(db, codigo, usuario)
     registrar_auditoria(db, request, "pdf_gerado", usuario["id"], linha["codigo"])
     return resposta_pdf(formatar(linha), linha["assinatura"], request)

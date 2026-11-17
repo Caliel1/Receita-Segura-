@@ -1,11 +1,10 @@
 """1 — API de Autenticação: login, primeiro acesso do paciente, logout."""
-import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from ..database import get_db
+from ..database import Conexao, get_db
 from ..dependencias import agora_iso, dados_publicos, registrar_auditoria, usuario_logado
 from ..seguranca import conferir_senha, gerar_hash_senha, gerar_token, sha256
 
@@ -27,7 +26,7 @@ class Ativacao(BaseModel):
     senha: str = Field(min_length=6, max_length=200)
 
 
-def criar_sessao(db: sqlite3.Connection, usuario_id: int) -> str:
+def criar_sessao(db: Conexao, usuario_id: int) -> str:
     token = gerar_token()
     expira = (datetime.now(timezone.utc) + DURACAO_SESSAO).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     db.execute("DELETE FROM sessoes WHERE expira_em < ?", (agora_iso(),))
@@ -36,7 +35,7 @@ def criar_sessao(db: sqlite3.Connection, usuario_id: int) -> str:
 
 
 @router.post("/login", summary="Entrar com e-mail e senha")
-def login(dados: Login, request: Request, db: sqlite3.Connection = Depends(get_db)):
+def login(dados: Login, request: Request, db: Conexao = Depends(get_db)):
     email = dados.email.strip().lower()
     usuario = db.execute("SELECT * FROM usuarios WHERE email = ?", (email,)).fetchone()
     # Mesma mensagem para e-mail inexistente e senha errada: não revela quais e-mails existem.
@@ -48,7 +47,7 @@ def login(dados: Login, request: Request, db: sqlite3.Connection = Depends(get_d
 
 
 @router.post("/ativar", status_code=201, summary="Primeiro acesso do paciente com o código de convite")
-def ativar(dados: Ativacao, request: Request, db: sqlite3.Connection = Depends(get_db)):
+def ativar(dados: Ativacao, request: Request, db: Conexao = Depends(get_db)):
     codigo = dados.codigo.strip().upper()
     email = dados.email.strip().lower()
     paciente = db.execute(
@@ -74,7 +73,7 @@ def eu(usuario=Depends(usuario_logado)):
 
 
 @router.post("/logout", status_code=204, summary="Encerrar a sessão")
-def logout(request: Request, usuario=Depends(usuario_logado), db: sqlite3.Connection = Depends(get_db)):
+def logout(request: Request, usuario=Depends(usuario_logado), db: Conexao = Depends(get_db)):
     token = request.headers["authorization"].split(" ", 1)[1]
     db.execute("DELETE FROM sessoes WHERE token = ?", (sha256(token),))
     registrar_auditoria(db, request, "logout", usuario["id"])

@@ -1,0 +1,22 @@
+# PostgreSQL para desenvolvimento. Com o Docker Desktop instalado, basta rodar:  docker compose up -d
+# (ou dar dois cliques em iniciar-banco.bat). Os dados ficam guardados no volume "dados_postgres",
+# então continuam lá mesmo depois de desligar o computador.
+#
+# ATENÇÃO: usuário/senha abaixo são só para testes na sua máquina. Em produção, use uma senha forte
+# e defina a variável DATABASE_URL com ela.
+services:
+  banco:
+    image: postgres:16
+    container_name: receita-segura-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: receita
+      POSTGRES_PASSWORD: receita
+      POSTGRES_DB: receita_segura
+    ports:
+      - "127.0.0.1:5432:5432"   # acessível só a partir do seu próprio computador
+    volumes:
+      - dados_postgres:/var/lib/postgresql/data
+
+volumes:
+  dados_postgres:

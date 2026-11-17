@@ -1,9 +1,8 @@
 """12 — API de Auditoria: registro de quem fez o quê e quando (logins, emissões, acessos...)."""
-import sqlite3
 
 from fastapi import APIRouter, Depends, Query
 
-from ..database import get_db
+from ..database import Conexao, get_db
 from ..dependencias import usuario_logado
 
 router = APIRouter(prefix="/api/auditoria", tags=["12. Auditoria"])
@@ -26,19 +25,27 @@ DESCRICOES = {
     "compartilhamento_revogado": "Link de compartilhamento revogado",
     "receita_dispensada": "Receita dispensada pela farmácia",
     "receita_cancelada": "Receita cancelada",
+    "documento_emitido": "Documento emitido e assinado",
+    "documento_visualizado": "Documento visualizado",
+    "documento_verificado": "Autenticidade de documento verificada",
+    "documento_pdf_gerado": "PDF de documento gerado",
+    "documento_cancelado": "Documento cancelado",
 }
 
 
 @router.get("", summary="Eventos da minha conta e das minhas receitas")
 def listar(limite: int = Query(default=30, ge=1, le=200), acao: str | None = None,
-           usuario=Depends(usuario_logado), db: sqlite3.Connection = Depends(get_db)):
+           usuario=Depends(usuario_logado), db: Conexao = Depends(get_db)):
     coluna = "medico_id" if usuario["papel"] == "medico" else "paciente_id"
-    # Tudo o que eu fiz + tudo o que aconteceu com receitas minhas (ex.: farmácia verificou).
+    # Tudo o que eu fiz + tudo o que aconteceu com receitas e documentos meus (ex.: farmácia verificou).
+    # (A coluna receita_codigo guarda o código de qualquer documento: RS-, EN-, LM- ou AT-.)
     sql = f"""
         SELECT a.*, u.nome AS usuario_nome FROM auditoria a LEFT JOIN usuarios u ON u.id = a.usuario_id
-        WHERE (a.usuario_id = ? OR a.receita_codigo IN (SELECT codigo FROM receitas WHERE {coluna} = ?))
+        WHERE (a.usuario_id = ?
+               OR a.receita_codigo IN (SELECT codigo FROM receitas WHERE {coluna} = ?)
+               OR a.receita_codigo IN (SELECT codigo FROM documentos WHERE {coluna} = ?))
     """
-    params: list = [usuario["id"], usuario["id"]]
+    params: list = [usuario["id"], usuario["id"], usuario["id"]]
     if acao:
         sql += " AND a.acao = ?"
         params.append(acao)

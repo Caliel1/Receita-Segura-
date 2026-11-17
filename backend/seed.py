@@ -1,5 +1,6 @@
 """Dados de demonstração — as mesmas contas que o front-end mostrava."""
 from .database import conectar
+from .documentos_servico import emitir_documento
 from .receitas_servico import emitir_receita
 from .seguranca import gerar_codigo_convite, gerar_hash_senha, gerar_par_de_chaves
 
@@ -48,10 +49,10 @@ def popular_se_vazio() -> None:
         publica, privada = gerar_par_de_chaves()
         medico_id = db.execute(
             """INSERT INTO usuarios (papel, nome, email, senha_hash, crm, especialidade, chave_publica, chave_privada)
-               VALUES ('medico', ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES ('medico', ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
             ("Dra. Camila Duarte", "camila@clinica.com", gerar_hash_senha("demo123"), "12345-AM", "Clínica Geral",
              publica, privada),
-        ).lastrowid
+        ).fetchone()["id"]
 
         pacientes = [
             ("João Ferreira Lima", "joao@email.com", gerar_hash_senha("demo123"), "2026-09-02"),
@@ -62,9 +63,9 @@ def popular_se_vazio() -> None:
         for nome, email, senha, atendimento in pacientes:
             convite = None if senha else gerar_codigo_convite()
             pid = db.execute(
-                "INSERT INTO usuarios (papel, nome, email, senha_hash, codigo_convite) VALUES ('paciente', ?, ?, ?, ?)",
+                "INSERT INTO usuarios (papel, nome, email, senha_hash, codigo_convite) VALUES ('paciente', ?, ?, ?, ?) RETURNING id",
                 (nome, email, senha, convite),
-            ).lastrowid
+            ).fetchone()["id"]
             db.execute("INSERT INTO medico_pacientes (medico_id, paciente_id, ultimo_atendimento) VALUES (?, ?, ?)",
                        (medico_id, pid, atendimento))
             ids.append(pid)
@@ -77,5 +78,59 @@ def popular_se_vazio() -> None:
             emitida_em="2026-08-14T13:41:00.000Z",
         )
         print("Banco criado com dados de demonstração.")
+    finally:
+        db.close()
+
+
+# Ficha fictícia do paciente de demonstração (CPF com dígitos verificadores válidos, de exemplo).
+FICHA_JOAO = {"dataNascimento": "1994-03-12", "cpf": "52998224725", "telefone": "91988887777"}
+
+
+def popular_documentos_demo() -> None:
+    """Cria 3 documentos de exemplo para o paciente de demonstração — só se ainda não existir nenhum.
+    Roda também em bancos antigos (criados antes dos documentos existirem)."""
+    db = conectar()
+    try:
+        if db.execute("SELECT COUNT(*) FROM documentos").fetchone()[0] > 0:
+            return
+        medico = db.execute("SELECT id FROM usuarios WHERE email = 'camila@clinica.com' AND papel = 'medico'").fetchone()
+        paciente = db.execute("SELECT id FROM usuarios WHERE email = 'joao@email.com' AND papel = 'paciente'").fetchone()
+        if not medico or not paciente:
+            return
+
+        ficha = FICHA_JOAO
+        emitir_documento(
+            db, "encaminhamento", medico["id"], paciente["id"], ficha,
+            {"especialidadeDestino": "Psiquiatria", "urgencia": "rotina",
+             "hipoteseDiagnostica": "Transtorno do déficit de atenção com hiperatividade (hipótese)",
+             "cid10": "F90.0", "cid11": "6A05.0", "consentimentoCid": True,
+             "motivo": "Solicito avaliação especializada para investigação de TDAH.",
+             "resumoClinico": "Paciente adulto com queixa de desatenção persistente, dificuldade de organização e "
+                              "de conclusão de tarefas desde a infância, com prejuízo no trabalho. Exames "
+                              "laboratoriais e TSH sem alterações. Sem uso prévio de psicofármacos."},
+            emitido_em="2026-09-02T12:30:00.000Z",
+        )
+        emitir_documento(
+            db, "relatorio", medico["id"], paciente["id"], ficha,
+            {"finalidade": "Apresentação à instituição de ensino, para adaptações em avaliações",
+             "descricaoClinica": "Paciente em acompanhamento desde agosto de 2026. Avaliação clínica com escalas de "
+                                 "rastreio e entrevista sobre histórico escolar e funcional, compatíveis com o "
+                                 "diagnóstico abaixo.",
+             "diagnostico": "Transtorno do déficit de atenção com hiperatividade, apresentação predominantemente "
+                            "desatenta",
+             "cid10": "F90.0", "cid11": "6A05.0", "consentimentoCid": True,
+             "limitacoes": "Déficit de atenção sustentada, com dificuldade de manter o foco em tarefas longas e "
+                           "maior suscetibilidade a distratores.",
+             "recomendacoes": "Realização de provas em sala individual ou com menos estímulos; tempo adicional de "
+                              "25% nas avaliações; pausas curtas; instruções fracionadas e por escrito."},
+            emitido_em="2026-09-02T12:45:00.000Z",
+        )
+        emitir_documento(
+            db, "atestado", medico["id"], paciente["id"], ficha,
+            {"finalidade": "afastamento", "dataAtendimento": "2026-09-02", "diasAfastamento": 3,
+             "consentimentoCid": False},
+            emitido_em="2026-09-02T13:00:00.000Z",
+        )
+        print("Documentos de demonstração criados.")
     finally:
         db.close()

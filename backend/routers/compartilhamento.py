@@ -1,12 +1,11 @@
 """10 — API de Compartilhamento: link temporário para a farmácia ver a receita completa."""
-import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from ..database import get_db, transacao
+from ..database import Conexao, Linha, get_db, transacao
 from ..dependencias import agora_iso, registrar_auditoria, usuario_logado
 from ..receitas_servico import formatar, receita_do_usuario, verificar
 from ..seguranca import gerar_token, sha256
@@ -20,7 +19,7 @@ class NovoCompartilhamento(BaseModel):
     horas: int = Field(default=24, ge=1, le=168)
 
 
-def compartilhamento_valido(db: sqlite3.Connection, token: str) -> sqlite3.Row:
+def compartilhamento_valido(db: Conexao, token: str) -> Linha:
     linha = db.execute(
         """SELECT c.*, r.codigo FROM compartilhamentos c JOIN receitas r ON r.id = c.receita_id
            WHERE c.token_hash = ? AND c.revogado = 0 AND c.expira_em > ?""",
@@ -33,24 +32,24 @@ def compartilhamento_valido(db: sqlite3.Connection, token: str) -> sqlite3.Row:
 
 @router.post("", status_code=201, summary="Criar link de compartilhamento de uma receita")
 def criar(dados: NovoCompartilhamento, request: Request, usuario=Depends(usuario_logado),
-          db: sqlite3.Connection = Depends(get_db)):
+          db: Conexao = Depends(get_db)):
     receita = receita_do_usuario(db, dados.codigo, usuario)
     if receita["status"] != "ativa":
         raise HTTPException(400, f"Esta receita está {receita['status']} e não pode ser compartilhada.")
     token = gerar_token()
     expira = (datetime.now(timezone.utc) + timedelta(hours=dados.horas)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     cursor = db.execute(
-        "INSERT INTO compartilhamentos (token_hash, receita_id, criado_por, criado_em, expira_em) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO compartilhamentos (token_hash, receita_id, criado_por, criado_em, expira_em) VALUES (?, ?, ?, ?, ?) RETURNING id",
         (sha256(token), receita["id"], usuario["id"], agora_iso(), expira),
-    )
+    ).fetchone()
     registrar_auditoria(db, request, "compartilhamento_criado", usuario["id"], receita["codigo"], f"{dados.horas}h")
     # O token só aparece aqui, uma vez. No banco fica só o hash dele.
-    return {"id": cursor.lastrowid, "token": token, "url": f"{str(request.base_url).rstrip('/')}/?c={token}",
+    return {"id": cursor["id"], "token": token, "url": f"{str(request.base_url).rstrip('/')}/?c={token}",
             "expiraEm": expira}
 
 
 @router.get("", summary="Listar links que criei")
-def listar(usuario=Depends(usuario_logado), db: sqlite3.Connection = Depends(get_db)):
+def listar(usuario=Depends(usuario_logado), db: Conexao = Depends(get_db)):
     linhas = db.execute(
         """SELECT c.id, r.codigo, c.criado_em, c.expira_em, c.acessos, c.revogado
            FROM compartilhamentos c JOIN receitas r ON r.id = c.receita_id
@@ -66,7 +65,7 @@ def listar(usuario=Depends(usuario_logado), db: sqlite3.Connection = Depends(get
 
 @router.delete("/{compartilhamento_id}", status_code=204, summary="Revogar um link")
 def revogar(compartilhamento_id: int, request: Request, usuario=Depends(usuario_logado),
-            db: sqlite3.Connection = Depends(get_db)):
+            db: Conexao = Depends(get_db)):
     linha = db.execute(
         """SELECT c.id, r.codigo FROM compartilhamentos c JOIN receitas r ON r.id = c.receita_id
            WHERE c.id = ? AND c.criado_por = ?""",
@@ -79,7 +78,7 @@ def revogar(compartilhamento_id: int, request: Request, usuario=Depends(usuario_
 
 
 @router.get("/acesso/{token}", summary="Abrir receita compartilhada (público, com o token do link)")
-def acessar(token: str, request: Request, db: sqlite3.Connection = Depends(get_db)):
+def acessar(token: str, request: Request, db: Conexao = Depends(get_db)):
     comp = compartilhamento_valido(db, token)
     db.execute("UPDATE compartilhamentos SET acessos = acessos + 1 WHERE id = ?", (comp["id"],))
     registrar_auditoria(db, request, "compartilhamento_acessado", receita_codigo=comp["codigo"])
@@ -88,7 +87,7 @@ def acessar(token: str, request: Request, db: sqlite3.Connection = Depends(get_d
 
 
 @router.get("/acesso/{token}/pdf", summary="PDF da receita compartilhada", response_class=Response)
-def acessar_pdf(token: str, request: Request, db: sqlite3.Connection = Depends(get_db)):
+def acessar_pdf(token: str, request: Request, db: Conexao = Depends(get_db)):
     comp = compartilhamento_valido(db, token)
     linha = db.execute("SELECT * FROM receitas WHERE id = ?", (comp["receita_id"],)).fetchone()
     registrar_auditoria(db, request, "pdf_gerado", receita_codigo=comp["codigo"], detalhe="via link compartilhado")
@@ -96,7 +95,7 @@ def acessar_pdf(token: str, request: Request, db: sqlite3.Connection = Depends(g
 
 
 @router.post("/acesso/{token}/dispensar", summary="Farmácia registra que entregou os medicamentos")
-def dispensar(token: str, request: Request, db: sqlite3.Connection = Depends(get_db)):
+def dispensar(token: str, request: Request, db: Conexao = Depends(get_db)):
     """Marca a receita como dispensada: evita que a mesma receita seja usada duas vezes."""
     comp = compartilhamento_valido(db, token)
     with transacao(db):

@@ -26,6 +26,7 @@
 
       <nav class="nav-desktop">
         <a href="#como-funciona">Como funciona</a>
+        <a href="#documentos">Documentos</a>
         <a href="#seguranca">Segurança</a>
         <button class="botao-entrar" data-abrir-auth>Entrar</button>
       </nav>
@@ -37,6 +38,7 @@
 
     <nav class="menu-mobile" id="menu-mobile">
       <a href="#como-funciona">Como funciona</a>
+      <a href="#documentos">Documentos</a>
       <a href="#seguranca">Segurança</a>
       <button class="botao-entrar" data-abrir-auth>Entrar</button>
     </nav>
@@ -126,6 +128,33 @@
         </div>
       </div>
     </section>
+
+    <section class="secao" id="documentos">
+      <div class="container">
+        <div class="secao-titulo">
+          <h2>Além da receita: documentos médicos assinados</h2>
+          <p>Encaminhamentos, relatórios/laudos e atestados passam pela mesma assinatura digital e podem ser conferidos por QR Code.</p>
+        </div>
+        <div class="passos">
+          <div class="passo">
+            <span class="passo-numero">EN</span>
+            <h3>Encaminhamento médico</h3>
+            <p>Guia de referência com os dados do paciente, o motivo da avaliação solicitada, o resumo da história clínica e as condutas já realizadas.</p>
+          </div>
+          <div class="passo">
+            <span class="passo-numero">LM</span>
+            <h3>Relatório médico / laudo</h3>
+            <p>Documento descritivo e fundamentado: condição de saúde, diagnóstico, limitações associadas e recomendações de adaptação, como sala individual ou tempo extra de prova.</p>
+          </div>
+          <div class="passo">
+            <span class="passo-numero">AT</span>
+            <h3>Atestado médico simples</h3>
+            <p>Comprovação imediata, como afastamento do trabalho por alguns dias ou comparecimento a atendimento — sem precisar expor o diagnóstico.</p>
+          </div>
+        </div>
+        <p class="nota-sigilo"><strong>Sigilo médico:</strong> hipótese diagnóstica e CID (CID-10 e CID-11) só entram no documento quando o paciente autoriza expressamente.</p>
+      </div>
+    </section>
   </main>
 
   <footer class="rodape">
@@ -137,6 +166,7 @@
       <p class="descricao">Receitas médicas legíveis, assinadas digitalmente e sempre disponíveis para médicos e pacientes.</p>
       <div class="rodape-links">
         <a href="#como-funciona">Como funciona</a>
+        <a href="#documentos">Documentos</a>
         <a href="#seguranca">Segurança</a>
         <a href="/docs" target="_blank" rel="noopener">API (documentação)</a>
         <button data-abrir-auth style="background:none;border:none;color:inherit;padding:0;font:inherit;">Entrar</button>
@@ -220,7 +250,7 @@
   <div class="painel-corpo">
     <div class="container">
       <h1 id="medico-saudacao">Bem-vindo(a)</h1>
-      <p class="sub">Emita e assine receitas para seus pacientes.</p>
+      <p class="sub">Emita e assine receitas e documentos médicos para seus pacientes.</p>
 
       <div class="grade-painel">
         <div class="cartao">
@@ -243,7 +273,15 @@
         </div>
 
         <div class="cartao">
-          <h2>Nova receita</h2>
+          <h2>Emitir documento</h2>
+          <div class="abas" role="tablist" aria-label="Tipo de documento">
+            <button type="button" class="aba ativo" role="tab" id="tab-receita" data-aba="receita" aria-selected="true" aria-controls="aba-receita">℞ Receita</button>
+            <button type="button" class="aba" role="tab" id="tab-encaminhamento" data-aba="encaminhamento" aria-selected="false" aria-controls="aba-encaminhamento" tabindex="-1">Encaminhamento</button>
+            <button type="button" class="aba" role="tab" id="tab-relatorio" data-aba="relatorio" aria-selected="false" aria-controls="aba-relatorio" tabindex="-1">Relatório / Laudo</button>
+            <button type="button" class="aba" role="tab" id="tab-atestado" data-aba="atestado" aria-selected="false" aria-controls="aba-atestado" tabindex="-1">Atestado</button>
+          </div>
+
+          <div id="aba-receita" role="tabpanel" aria-labelledby="tab-receita" data-painel-aba="receita">
           <form id="form-receita">
             <div class="campo">
               <label for="paciente-receita">Paciente</label>
@@ -266,12 +304,130 @@
               <button type="submit" class="botao botao-primario">Revisar e assinar digitalmente</button>
             </div>
           </form>
+          </div>
+
+          <!-- ===== Encaminhamento médico (guia de referência) ===== -->
+          <div id="aba-encaminhamento" role="tabpanel" aria-labelledby="tab-encaminhamento" data-painel-aba="encaminhamento" class="oculto">
+            <form class="form-documento" data-tipo="encaminhamento" data-endpoint="/documentos/encaminhamentos">
+              <div data-slot="paciente"></div>
+
+              <fieldset class="grupo">
+                <legend>Encaminhamento</legend>
+                <div class="campo"><label>Encaminhar para (especialidade)<input type="text" name="especialidadeDestino" maxlength="120" placeholder="Ex.: Psiquiatria, Neurologia" required></label></div>
+                <div class="linha-campos">
+                  <div class="campo"><label>Serviço / profissional <span class="dica">(opcional)</span><input type="text" name="servicoDestino" maxlength="200" placeholder="Ex.: Ambulatório de TDAH"></label></div>
+                  <div class="campo"><label>Prioridade
+                    <select name="urgencia">
+                      <option value="rotina">Rotina (eletivo)</option>
+                      <option value="prioritario">Prioritário</option>
+                      <option value="urgente">Urgente</option>
+                    </select></label></div>
+                </div>
+                <div class="campo"><label>Motivo da consulta / avaliação solicitada<textarea name="motivo" maxlength="1000" placeholder="Ex.: Solicito avaliação especializada para investigação de TDAH." required></textarea></label></div>
+                <div class="campo"><label>Resumo da história clínica e condutas já realizadas<textarea name="resumoClinico" maxlength="3000" class="textarea-grande" placeholder="Queixa, evolução, exames já feitos, tratamentos tentados..." required></textarea></label></div>
+              </fieldset>
+
+            <fieldset class="grupo">
+              <legend>Hipótese diagnóstica e CID <span class="dica">(opcional — exige autorização do paciente)</span></legend>
+              <label class="caixa-consentimento">
+                <input type="checkbox" name="consentimentoCid">
+                <span>O paciente <strong>autorizou expressamente</strong> a inclusão de diagnóstico/CID neste documento.
+                  <small>O CID revela o diagnóstico; sem autorização ele não deve constar (sigilo médico).</small></span>
+              </label>
+              <div class="campo"><label>Hipótese diagnóstica<textarea name="hipoteseDiagnostica" maxlength="500" placeholder="Ex.: Transtorno do déficit de atenção com hiperatividade (hipótese)" data-requer-consentimento disabled></textarea></label></div>
+              <div class="linha-campos">
+                <div class="campo"><label>CID-10<input type="text" name="cid10" maxlength="8" placeholder="Ex.: F90.0" autocomplete="off" data-requer-consentimento disabled></label></div>
+                <div class="campo"><label>CID-11<input type="text" name="cid11" maxlength="8" placeholder="Ex.: 6A05.0" autocomplete="off" data-requer-consentimento disabled></label></div>
+              </div>
+            </fieldset>
+
+              <p class="mensagem-erro oculto" data-erro></p>
+              <div class="rodape-form"><button type="submit" class="botao botao-primario">Revisar e assinar digitalmente</button></div>
+            </form>
+          </div>
+
+          <!-- ===== Relatório médico / laudo ===== -->
+          <div id="aba-relatorio" role="tabpanel" aria-labelledby="tab-relatorio" data-painel-aba="relatorio" class="oculto">
+            <form class="form-documento" data-tipo="relatorio" data-endpoint="/documentos/relatorios">
+              <div data-slot="paciente"></div>
+
+              <fieldset class="grupo">
+                <legend>Relatório / laudo</legend>
+                <div class="campo"><label>Finalidade <span class="dica">(opcional)</span><input type="text" name="finalidade" maxlength="300" placeholder="Ex.: Apresentação à instituição de ensino"></label></div>
+                <div class="campo"><label>Histórico e avaliação clínica<textarea name="descricaoClinica" maxlength="4000" class="textarea-grande" placeholder="Descreva o acompanhamento, a avaliação realizada e o que fundamenta o diagnóstico." required></textarea></label></div>
+                <div class="campo"><label>Diagnóstico<textarea name="diagnostico" maxlength="500" placeholder="Ex.: Transtorno do déficit de atenção com hiperatividade, apresentação desatenta" required></textarea></label></div>
+                <div class="campo"><label>Limitações associadas <span class="dica">(opcional)</span><textarea name="limitacoes" maxlength="2000" placeholder="Ex.: Déficit de atenção sustentada; dificuldade em tarefas longas."></textarea></label></div>
+                <div class="campo"><label>Recomendações de adaptação <span class="dica">(opcional)</span><textarea name="recomendacoes" maxlength="2000" placeholder="Ex.: Sala individual, tempo adicional de prova, pausas curtas."></textarea></label></div>
+              </fieldset>
+
+            <fieldset class="grupo">
+              <legend>CID <span class="dica">(opcional — exige autorização do paciente)</span></legend>
+              <label class="caixa-consentimento">
+                <input type="checkbox" name="consentimentoCid">
+                <span>O paciente <strong>autorizou expressamente</strong> a inclusão de diagnóstico/CID neste documento.
+                  <small>O CID revela o diagnóstico; sem autorização ele não deve constar (sigilo médico).</small></span>
+              </label>
+              <div class="linha-campos">
+                <div class="campo"><label>CID-10<input type="text" name="cid10" maxlength="8" placeholder="Ex.: F90.0" autocomplete="off" data-requer-consentimento disabled></label></div>
+                <div class="campo"><label>CID-11<input type="text" name="cid11" maxlength="8" placeholder="Ex.: 6A05.0" autocomplete="off" data-requer-consentimento disabled></label></div>
+              </div>
+            </fieldset>
+
+              <p class="mensagem-erro oculto" data-erro></p>
+              <div class="rodape-form"><button type="submit" class="botao botao-primario">Revisar e assinar digitalmente</button></div>
+            </form>
+          </div>
+
+          <!-- ===== Atestado médico simples ===== -->
+          <div id="aba-atestado" role="tabpanel" aria-labelledby="tab-atestado" data-painel-aba="atestado" class="oculto">
+            <form class="form-documento" data-tipo="atestado" data-endpoint="/documentos/atestados">
+              <div data-slot="paciente"></div>
+
+              <fieldset class="grupo">
+                <legend>Atestado</legend>
+                <div class="campo"><label>Finalidade
+                  <select name="finalidade" data-alterna-finalidade>
+                    <option value="afastamento">Afastamento (trabalho / atividades)</option>
+                    <option value="comparecimento">Comparecimento a atendimento</option>
+                  </select></label></div>
+                <div class="linha-campos">
+                  <div class="campo"><label>Data do atendimento<input type="date" name="dataAtendimento" data-hoje required></label></div>
+                  <div class="campo" data-se-finalidade="afastamento"><label>Dias de afastamento<input type="number" name="diasAfastamento" min="1" max="365" inputmode="numeric" placeholder="Ex.: 3" required></label></div>
+                  <div class="campo" data-se-finalidade="comparecimento"><label>Horário <span class="dica">(opcional)</span><input type="text" name="horarioAtendimento" maxlength="60" placeholder="Ex.: 08h às 10h"></label></div>
+                </div>
+                <div class="campo" data-se-finalidade="afastamento"><label>Início do afastamento <span class="dica">(se vazio, é a data do atendimento)</span><input type="date" name="inicioAfastamento"></label></div>
+                <div class="campo"><label>Observações <span class="dica">(opcional)</span><textarea name="observacoes" maxlength="500" placeholder="Ex.: Repouso domiciliar."></textarea></label></div>
+              </fieldset>
+
+            <fieldset class="grupo">
+              <legend>CID <span class="dica">(opcional — exige autorização do paciente)</span></legend>
+              <label class="caixa-consentimento">
+                <input type="checkbox" name="consentimentoCid">
+                <span>O paciente <strong>autorizou expressamente</strong> a inclusão de diagnóstico/CID neste documento.
+                  <small>O CID revela o diagnóstico; sem autorização ele não deve constar (sigilo médico).</small></span>
+              </label>
+              <div class="linha-campos">
+                <div class="campo"><label>CID-10<input type="text" name="cid10" maxlength="8" placeholder="Ex.: F90.0" autocomplete="off" data-requer-consentimento disabled></label></div>
+                <div class="campo"><label>CID-11<input type="text" name="cid11" maxlength="8" placeholder="Ex.: 6A05.0" autocomplete="off" data-requer-consentimento disabled></label></div>
+              </div>
+            </fieldset>
+
+              <p class="mensagem-erro oculto" data-erro></p>
+              <div class="rodape-form"><button type="submit" class="botao botao-primario">Revisar e assinar digitalmente</button></div>
+            </form>
+          </div>
         </div>
       </div>
 
       <div class="cartao" style="margin-top:24px;">
         <h2>Receitas emitidas</h2>
         <ul class="tabela-receitas" id="lista-emitidas"></ul>
+      </div>
+
+      <div class="cartao" style="margin-top:24px;">
+        <h2>Documentos emitidos</h2>
+        <p class="sub-cartao">Encaminhamentos, relatórios/laudos e atestados.</p>
+        <ul class="tabela-receitas" id="lista-documentos-emitidos"></ul>
       </div>
 
       <div class="cartao" style="margin-top:24px;">
@@ -306,11 +462,17 @@
   <div class="painel-corpo">
     <div class="container">
       <h1 id="paciente-saudacao">Olá</h1>
-      <p class="sub">Suas receitas assinadas digitalmente, sempre à mão.</p>
+      <p class="sub">Suas receitas e documentos médicos assinados digitalmente, sempre à mão.</p>
 
       <div class="cartao">
         <h2>Minhas receitas</h2>
         <ul class="tabela-receitas" id="lista-paciente-receitas"></ul>
+      </div>
+
+      <div class="cartao" style="margin-top:24px;">
+        <h2>Meus documentos</h2>
+        <p class="sub-cartao">Encaminhamentos, relatórios/laudos e atestados emitidos para você.</p>
+        <ul class="tabela-receitas" id="lista-paciente-documentos"></ul>
       </div>
 
       <div class="cartao" style="margin-top:24px;">
@@ -326,7 +488,7 @@
   <div class="modal">
     <button class="fechar-modal" data-fechar-modal aria-label="Fechar">✕</button>
     <h2 style="font-size:1.2rem;">Assinar digitalmente</h2>
-    <p style="color:var(--cinza-700);font-size:0.9rem;">Confirme os dados da receita antes de assinar.</p>
+    <p id="assinar-descricao" style="color:var(--cinza-700);font-size:0.9rem;">Confirme os dados antes de assinar.</p>
 
     <div id="resumo-receita" style="margin:16px 0;font-size:0.9rem;"></div>
 
@@ -345,10 +507,22 @@
 <div class="sobreposicao" id="modal-detalhe">
   <div class="modal">
     <button class="fechar-modal" data-fechar-modal aria-label="Fechar">✕</button>
-    <h2 style="font-size:1.2rem;">Detalhe da receita</h2>
+    <h2 style="font-size:1.2rem;" id="titulo-detalhe">Detalhe</h2>
     <div id="conteudo-detalhe" style="margin-top:16px;"></div>
   </div>
 </div>
+
+<template id="tpl-paciente">
+  <fieldset class="grupo">
+    <legend>Dados do paciente</legend>
+    <div class="campo"><label>Paciente<input type="text" data-paciente-nome readonly placeholder="Selecione na lista “Meus pacientes”" required></label></div>
+    <div class="linha-campos">
+      <div class="campo"><label>Data de nascimento<input type="date" name="dataNascimento" data-passado></label></div>
+      <div class="campo"><label>CPF<input type="text" name="cpf" data-mascara="cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" autocomplete="off"></label></div>
+    </div>
+    <div class="campo"><label>Telefone<input type="tel" name="telefone" data-mascara="telefone" inputmode="tel" maxlength="15" placeholder="(91) 90000-0000" autocomplete="off"></label></div>
+  </fieldset>
+</template>
 
 <script src="js/script.js"></script>
 </body>

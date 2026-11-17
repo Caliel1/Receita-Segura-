@@ -837,3 +837,71 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 @media print {
   .folha-qr img { width: 80px; height: 80px; }
 }
+
+/* ---------- Documentos médicos (encaminhamento, relatório/laudo, atestado) ---------- */
+
+/* Abas do card "Emitir documento" */
+.abas { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.aba {
+  background: var(--branco);
+  border: 1px solid var(--cinza-200);
+  border-radius: 999px;
+  padding: 8px 16px;
+  min-height: 42px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--cinza-700);
+}
+.aba:hover { border-color: var(--azul-500); color: var(--azul-800); }
+.aba.ativo { background: var(--azul-900); border-color: var(--azul-900); color: var(--branco); }
+
+/* Campos: rótulo que envolve o input (os formulários de documento repetem os mesmos campos) */
+.campo label > input, .campo label > select, .campo label > textarea { margin-top: 6px; font-weight: 400; }
+.campo label .dica, .grupo legend .dica { font-weight: 400; color: var(--cinza-700); font-size: 0.78rem; }
+.textarea-grande { min-height: 140px; }
+.campo select { appearance: auto; }
+.campo input:disabled, .campo textarea:disabled { background: var(--cinza-100); color: var(--cinza-400); cursor: not-allowed; }
+.campo input[readonly] { background: var(--cinza-100); }
+
+.grupo { border: 1px solid var(--cinza-200); border-radius: var(--raio-sm); padding: 14px 16px 2px; margin: 0 0 16px; min-width: 0; }
+.grupo legend { font-size: 0.82rem; font-weight: 700; color: var(--azul-900); padding: 0 6px; }
+.linha-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.linha-campos .campo { min-width: 0; }
+
+/* Autorização do paciente para constar CID (sigilo médico) */
+.caixa-consentimento {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--azul-100); border-radius: var(--raio-sm);
+  padding: 12px 14px; margin-bottom: 14px; font-size: 0.86rem; cursor: pointer;
+}
+.caixa-consentimento input { width: 20px; height: 20px; min-height: 0; margin-top: 2px; flex: none; accent-color: var(--azul-900); }
+.caixa-consentimento small { display: block; color: var(--cinza-700); margin-top: 4px; font-size: 0.78rem; }
+
+.sub-cartao { margin: -8px 0 14px; font-size: 0.85rem; color: var(--cinza-700); }
+.nota-sigilo { margin: 28px 0 0; font-size: 0.9rem; color: var(--cinza-700); background: var(--azul-100); border-radius: var(--raio-sm); padding: 14px 16px; }
+.nota-sigilo strong { color: var(--azul-900); }
+
+/* Folha do documento (tela e impressão) — reaproveita .folha-receita */
+.folha-tipo { font-family: var(--fonte-titulo); font-size: 0.95rem; line-height: 1.25; text-align: right; flex: none; max-width: 9.5em; padding-left: 8px; overflow-wrap: anywhere; }
+.folha-titulo-doc { margin: 0 0 14px; font-family: var(--fonte-titulo); font-size: 1.05rem; font-weight: 600; color: var(--azul-900); }
+.folha-orientacoes .texto-livre { white-space: pre-line; }
+.folha-orientacoes .texto-atestado { font-size: 1rem; line-height: 1.65; color: var(--tinta); white-space: pre-line; margin-top: 4px; }
+.folha-carimbo {
+  margin: 4px 20px 12px; padding: 12px 16px;
+  border: 1.5px solid var(--azul-900); border-radius: var(--raio-sm);
+  font-size: 0.82rem; color: var(--cinza-700);
+}
+.folha-carimbo strong { display: block; color: var(--azul-900); font-size: 0.92rem; }
+
+@media (max-width: 900px) {
+  .linha-campos { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .abas { gap: 6px; }
+  .aba { flex: 1 1 calc(50% - 6px); padding: 8px 10px; }
+}
+
+@media print {
+  .folha-carimbo { border-color: #000; }
+  .folha-orientacoes .texto-livre, .folha-orientacoes .texto-atestado { color: #000; }
+}
